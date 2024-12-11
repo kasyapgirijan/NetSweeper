@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import pandas as pd  # Requires installation: pip install pandas openpyxl
 import math
+from art import text2art
 
 # Global Constants
 PING_PATH = None
@@ -15,6 +16,10 @@ TCP_PATH = None
 UDP_PATH = None
 VERBOSE = False
 
+banner = text2art("NetSweeper", font='standard')  # You can try other fonts like 'standard', 'slant'
+print(banner)
+print ("by Kasyap Girijan")
+print(" ")
 
 # Initialization Functions
 def init_directories(output_dir):
