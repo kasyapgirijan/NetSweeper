@@ -15,11 +15,12 @@ TMP_PATH = None
 TCP_PATH = None
 UDP_PATH = None
 VERBOSE = False
+BACKGROUND = False
 
 # Display Banner
 banner = text2art("NetSweeper", font='standard')
 print(banner)
-print("v1.1 by Kasyap Girijan\n")
+print("by Kasyap Girijan\n")
 
 # Initialization Functions
 def init_directories(output_dir):
@@ -38,9 +39,13 @@ def init_directories(output_dir):
 
 
 def run_command(command, log_file):
-    """Run shell commands in the background and log output."""
+    """Run shell commands normally or in the background with logging."""
+    global BACKGROUND
     with open(log_file, "a") as log:
-        subprocess.Popen(command, shell=True, stdout=log, stderr=log, preexec_fn=os.setpgrp)
+        if BACKGROUND:
+            subprocess.Popen(command, shell=True, stdout=log, stderr=log, preexec_fn=os.setpgrp)
+        else:
+            subprocess.run(command, shell=True, stdout=log, stderr=log)
 
 
 def validate_interface(interface):
@@ -144,9 +149,13 @@ def main():
     parser.add_argument("-s", "--scope", required=True, help="Scope file path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
     parser.add_argument("--extensive", action="store_true", help="Enable extensive ping sweep (SCTP, TCP, and UDP ports)")
+    parser.add_argument("--bg", action="store_true", help="Run scan in background with logging")
     args = parser.parse_args()
-    global VERBOSE
+    
+    global VERBOSE, BACKGROUND
     VERBOSE = args.verbose
+    BACKGROUND = args.bg
+    
     init_directories(args.output)
     ping_sweep(validate_interface(args.interface), validate_scope(args.scope), args.extensive)
     
@@ -154,7 +163,7 @@ def main():
     html_report_path = Path(args.output) / "scan_report.html"
     generate_html_report(results, html_report_path)
     
-    print("Scan started in the background. Logs are being saved.")
+    print("Scan started in the background. Logs are being saved." if BACKGROUND else "Scan completed successfully!")
 
 if __name__ == "__main__":
     main()
