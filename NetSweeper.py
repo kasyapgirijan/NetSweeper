@@ -177,16 +177,16 @@ def ping_sweep(eth, scope_file, extensive=False):
         UDP_PORTS = "53,67,123,135,137-138,161,445,631,1434"
 
         commands = [
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_tcp.txt -sn -n -PS{TCP_PORTS}",
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_udp.txt -sn -n -PU{UDP_PORTS}",
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_sctp.txt -sn -n -PY{SCTP_PORTS}",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_tcp.txt -sn -n -PS{TCP_PORTS}",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_udp.txt -sn -n -PU{UDP_PORTS}",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_sctp.txt -sn -n -PY{SCTP_PORTS}",
         ]
     else:
         # Simple ping sweep using ICMP probes
         commands = [
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_n.txt -sn -n --disable-arp-ping",
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_s.txt -sn -n -PS80 --disable-arp-ping",
-            f"nmap -T3 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_u.txt -sn -n -PU53 --disable-arp-ping",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_n.txt -sn -n --disable-arp-ping",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_s.txt -sn -n -PS80 --disable-arp-ping",
+            f"nmap -T4 -e {eth} -iL {scope_file} -oN {PING_PATH}/ping_sweep_u.txt -sn -n -PU53 --disable-arp-ping",
     ]
 
     # Execute the commands in parallel
