@@ -8,6 +8,19 @@ from pathlib import Path
 import pandas as pd  # Requires installation: pip install pandas openpyxl
 import math
 from art import text2art
+import os
+import sys
+
+import signal
+
+def signal_handler(signum, frame):
+    print(f"Signal {signum} received, stopping...")
+    # Clean up resources if needed
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 
 # Global Constants
 PING_PATH = None
@@ -18,7 +31,7 @@ VERBOSE = False
 
 banner = text2art("NetSweeper", font='standard')  # You can try other fonts like 'standard', 'slant'
 print(banner)
-print ("by Kasyap Girijan")
+print ("v1.1 by Kasyap Girijan")
 print(" ")
 
 # Initialization Functions
@@ -250,6 +263,59 @@ def perform_scans(alive_machines_file, eth):
 
     return all_results
 
+def export_to_html(results, output_file):
+    """Exports scan results to an interactive HTML report with critical ports highlighted."""
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Scan Results</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css">
+        <style>
+            body { padding: 20px; }
+            h1 { color: #333; }
+            .table { margin-top: 20px; }
+            .critical-port { color: red; }
+        </style>
+    </head>
+    <body>
+        <h1>Network Scan Results</h1>
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Host</th>
+                    <th>Port</th>
+                    <th>State</th>
+                    <th>Service</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    critical_ports = {20, 21, 22, 23, 25, 53, 80, 110, 123, 143, 161, 162, 389, 443, 587, 636, 990, 1433, 3306, 1521, 5432, 3268, 3269, 3389, 5900}
+    for host in results:
+        for port in host["ports"]:
+            port_num = int(port['port'].split('/')[0])  # Assuming port format is '80/tcp'
+            row_class = 'critical-port' if port_num in critical_ports else ''
+            html_content += f"""
+                <tr class="{row_class}">
+                    <td>{host['host']}</td>
+                    <td>{port['port']}</td>
+                    <td>{port['state']}</td>
+                    <td>{port['service']}</td>
+                </tr>
+            """
+    
+    html_content += """
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    
+    with open(output_file, "w") as file:
+        file.write(html_content)
+    print(f"Results exported to HTML: {output_file}")
 
 
 # Main Function
@@ -260,8 +326,21 @@ def main():
     parser.add_argument("-s", "--scope", required=True, help="Path to the scope file")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
     parser.add_argument("--extensive", action="store_true", help="Enable extensive ping sweep (SCTP, TCP, and UDP ports)")
+    parser.add_argument("--html", action="store_true", help="Export results to HTML file")
+    parser.add_argument("--bg", action="store_true", help="Run the script in the background")
 
     args = parser.parse_args()
+
+    if args.bg:
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # Exit from the parent process
+                print(f"The process will now run in the background with PID {pid}")
+                sys.exit(0)
+        except OSError as e:
+            sys.stderr.write(f"Fork failed: {e.errno} ({e.strerror})\n")
+            sys.exit(1)
 
     global VERBOSE
     VERBOSE = args.verbose
@@ -283,6 +362,8 @@ def main():
         # Export results
         export_to_json(scan_results, PING_PATH / "scan_results.json")
         export_to_excel(scan_results, PING_PATH / "scan_results.xlsx")
+        if args.html:
+            export_to_html(scan_results, PING_PATH / "scan_results.html")
 
         print("Scans completed successfully!")
     except Exception as e:
