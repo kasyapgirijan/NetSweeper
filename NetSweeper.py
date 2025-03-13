@@ -252,15 +252,7 @@ def tcp_scan(ip, eth):
 
 #     return all_results
 
-def perform_scans(eth, scope, tcp, udp):
-    alive_file = PING_PATH / "alivemachines.txt"
-    scan_results = []
-    if tcp:
-        tcp_results = tcp_scan(alive_file, eth)  # Implement this function based on your needs
-        scan_results.extend(tcp_results)
-    if udp:
-        udp_results = udp_scan(alive_file, eth)  # Implement this function based on your needs
-        scan_results.extend(udp_results)
+
 
 def export_to_html(results, output_file):
     """Exports scan results to an interactive HTML report with critical ports highlighted."""
@@ -316,6 +308,20 @@ def export_to_html(results, output_file):
         file.write(html_content)
     print(f"Results exported to HTML: {output_file}")
 
+def perform_scans(alive_machines_file, eth, scan_tcp=True, scan_udp=True):
+    """Executes TCP and/or UDP scans for all alive machines based on the flags."""
+    print(f"Executing {'TCP' if scan_tcp else ''}{' and ' if scan_tcp and scan_udp else ''}{'UDP' if scan_udp else ''} scans...")
+    all_results = []
+
+    for ip in open(alive_machines_file).read().splitlines():
+        if scan_tcp:
+            tcp_results = tcp_scan(ip, eth)
+            all_results.extend(tcp_results)
+        if scan_udp:
+            udp_results = udp_scan(ip, eth)
+            all_results.extend(udp_results)
+
+    return all_results
 
 # Main Function
 def main():
@@ -323,31 +329,12 @@ def main():
     parser.add_argument("-o", "--output", required=True, help="Output directory for results")
     parser.add_argument("-i", "--interface", required=True, help="Network interface to use")
     parser.add_argument("-s", "--scope", required=True, help="Path to the scope file")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
-    parser.add_argument("--extensive", action="store_true", help="Enable extensive ping sweep (SCTP, TCP, and UDP ports)")
-    parser.add_argument("--html", action="store_true", help="Export results to HTML file")
     parser.add_argument("--tcp", action="store_true", help="Perform only TCP scans")
     parser.add_argument("--udp", action="store_true", help="Perform only UDP scans")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
+    parser.add_argument("--html", action="store_true", help="Export results to HTML file")
 
     args = parser.parse_args()
-
-    init_directories(args.output)
-    eth = validate_interface(args.interface)
-    scope = validate_scope(args.scope)
-
-    if args.tcp and args.udp:
-        print("Performing both TCP and UDP scans...")
-        perform_scans(eth, scope, tcp=True, udp=True)
-    elif args.tcp:
-        print("Performing only TCP scans...")
-        perform_scans(eth, scope, tcp=True, udp=False)
-    elif args.udp:
-        print("Performing only UDP scans...")
-        perform_scans(eth, scope, tcp=False, udp=True)
-    else:
-        print("Performing default scans (both TCP and UDP)...")
-        perform_scans(eth, scope, tcp=True, udp=True)
-
     global VERBOSE
     VERBOSE = args.verbose
 
@@ -360,10 +347,14 @@ def main():
         eth = validate_interface(args.interface)
         scope = validate_scope(args.scope)
 
-        print("Starting scans...")
-        ping_sweep(eth, scope, extensive=args.extensive)
+        ping_sweep(eth, scope, extensive=False)
         alive_file = PING_PATH / "alivemachines.txt"
-        scan_results = perform_scans(alive_file, eth)
+
+        # Determine scan type based on user flags
+        scan_tcp = args.tcp or not args.udp  # Default to TCP if no flag is provided
+        scan_udp = args.udp or not args.tcp  # Default to UDP if no flag is provided
+
+        scan_results = perform_scans(alive_file, eth, scan_tcp=scan_tcp, scan_udp=scan_udp)
 
         # Export results
         export_to_json(scan_results, PING_PATH / "scan_results.json")
