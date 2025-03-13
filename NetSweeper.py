@@ -11,17 +11,6 @@ from art import text2art
 import os
 import sys
 
-import signal
-
-def signal_handler(signum, frame):
-    print(f"Signal {signum} received, stopping...")
-    # Clean up resources if needed
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
-
 # Global Constants
 PING_PATH = None
 TMP_PATH = None
@@ -234,34 +223,44 @@ def tcp_scan(ip, eth):
     return []
 
 
-def perform_scans(alive_machines_file, eth):
-    """Executes both TCP and UDP scans for all alive machines."""
-    print("Executing TCP and UDP Scans...")
-    split_files = split_machines(alive_machines_file)
-    total_ips = sum(len(open(file).readlines()) for file in split_files)
-    start_time = time.time()
+# def perform_scans(alive_machines_file, eth):
+#     """Executes both TCP and UDP scans for all alive machines."""
+#     print("Executing TCP and UDP Scans...")
+#     split_files = split_machines(alive_machines_file)
+#     total_ips = sum(len(open(file).readlines()) for file in split_files)
+#     start_time = time.time()
 
-    count = 0  # For tracking progress
-    all_results = []
+#     count = 0  # For tracking progress
+#     all_results = []
 
-    for split_file in split_files:
-        with open(split_file, "r") as file:
-            ips = file.read().splitlines()
+#     for split_file in split_files:
+#         with open(split_file, "r") as file:
+#             ips = file.read().splitlines()
 
-        for ip in ips:
-            # Run UDP scan and collect results
-            udp_results = udp_scan(ip, eth)
-            all_results.extend(udp_results)
+#         for ip in ips:
+#             # Run UDP scan and collect results
+#             udp_results = udp_scan(ip, eth)
+#             all_results.extend(udp_results)
 
-            # Run TCP scan and collect results
-            tcp_results = tcp_scan(ip, eth)
-            all_results.extend(tcp_results)
+#             # Run TCP scan and collect results
+#             tcp_results = tcp_scan(ip, eth)
+#             all_results.extend(tcp_results)
 
-            # Update progress
-            count += 1
-            verbose_log(f"Completed scans for {ip}", start_time, count, total_ips)
+#             # Update progress
+#             count += 1
+#             verbose_log(f"Completed scans for {ip}", start_time, count, total_ips)
 
-    return all_results
+#     return all_results
+
+def perform_scans(eth, scope, tcp, udp):
+    alive_file = PING_PATH / "alivemachines.txt"
+    scan_results = []
+    if tcp:
+        tcp_results = tcp_scan(alive_file, eth)  # Implement this function based on your needs
+        scan_results.extend(tcp_results)
+    if udp:
+        udp_results = udp_scan(alive_file, eth)  # Implement this function based on your needs
+        scan_results.extend(udp_results)
 
 def export_to_html(results, output_file):
     """Exports scan results to an interactive HTML report with critical ports highlighted."""
@@ -327,20 +326,27 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
     parser.add_argument("--extensive", action="store_true", help="Enable extensive ping sweep (SCTP, TCP, and UDP ports)")
     parser.add_argument("--html", action="store_true", help="Export results to HTML file")
-    parser.add_argument("--bg", action="store_true", help="Run the script in the background")
+    parser.add_argument("--tcp", action="store_true", help="Perform only TCP scans")
+    parser.add_argument("--udp", action="store_true", help="Perform only UDP scans")
 
     args = parser.parse_args()
 
-    if args.bg:
-        try:
-            pid = os.fork()
-            if pid > 0:
-                # Exit from the parent process
-                print(f"The process will now run in the background with PID {pid}")
-                sys.exit(0)
-        except OSError as e:
-            sys.stderr.write(f"Fork failed: {e.errno} ({e.strerror})\n")
-            sys.exit(1)
+    init_directories(args.output)
+    eth = validate_interface(args.interface)
+    scope = validate_scope(args.scope)
+
+    if args.tcp and args.udp:
+        print("Performing both TCP and UDP scans...")
+        perform_scans(eth, scope, tcp=True, udp=True)
+    elif args.tcp:
+        print("Performing only TCP scans...")
+        perform_scans(eth, scope, tcp=True, udp=False)
+    elif args.udp:
+        print("Performing only UDP scans...")
+        perform_scans(eth, scope, tcp=False, udp=True)
+    else:
+        print("Performing default scans (both TCP and UDP)...")
+        perform_scans(eth, scope, tcp=True, udp=True)
 
     global VERBOSE
     VERBOSE = args.verbose
